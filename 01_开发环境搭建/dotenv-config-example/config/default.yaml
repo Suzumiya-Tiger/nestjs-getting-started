@@ -1,0 +1,22 @@
+# {
+#   "token_secret":"long-secret",
+#   "db":{
+#     "host":"192.168.134.32",
+#     "port":3306,
+#     "username":"your_username",
+#     "password":"your_password",
+#     "database":"your_database"
+#   }
+# }
+
+
+# 配置文件，包含数据库和令牌信息
+
+token_secret: "long-secret"
+
+db:
+  host: "192.168.134.32"
+  port: 3306
+  username: "your_username"
+  password: "your_password"
+  database: "your_database"

@@ -1,0 +1,12 @@
+
+# {
+#   "token_secret":"long-secret",
+#   "db":{
+#     "host":"192.18.24.12",
+#     "port":55333
+#   }
+# }
+db:
+host: "192.18.24.12"
+port: 55333
+token_secret: "a-secret"
