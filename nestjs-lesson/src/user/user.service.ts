@@ -5,12 +5,12 @@ import { User } from './user.entity';
 import { Logs } from 'src/logs/logs.entity';
 import { Roles } from 'src/roles/roles.entity';
 import { getUserDto } from './dto/get-user.dto';
+import { conditionUtils } from 'src/utils/db.helper';
 import * as argon2 from 'argon2';
 
 @Injectable()
 export class UserService {
   constructor(
-    // 这里告诉 NestJS：我需要一个处理 User 的工具箱
     @InjectRepository(User) private readonly userRepository: Repository<User>,
     @InjectRepository(Logs) private readonly logsRepository: Repository<Logs>,
     @InjectRepository(Roles)
@@ -21,7 +21,45 @@ export class UserService {
     const { limit, page, username, gender, role } = query;
     const take = limit || 10;
     const skip = ((page || 1) - 1) * take;
+    // SELECT * FROM user u, profile p, role r WHERE u.id = p.uid AND u.id = r.uid AND ....
+    // SELECT * FROM user u LEFT JOIN profile p ON u.id = p.uid LEFT JOIN role r ON u.id = r.uid WHERE ....
+    // 分页 SQL -> LIMIT 10 OFFSET 10
+    /*     return this.userRepository.find({
+      select: {
+        // 将返回用户的 id 和 usev  rname
+        id: true,
+        username: true,
+        // 从关联的 profile 表中只返回 gender 字段
+        profile: {
+          gender: true,
+        },
+      },
+      // 指定需要关联查询的表
+      relations: {
+        // 这会覆盖select中的设置，导致返回整个profile对象的所有字段。
+        profile: true,
+        roles: true,
+      },
+      // 设置查询条件：
+      // 按 username 筛选用户
+      // 按 profile.gender 筛选性别
+      // 按 roles.id 筛选角色
+      where: {
+        // AND OR
+        username,
+        profile: {
+          gender,
+        },
+        roles: {
+          id: role,
+        },
+      },
 
+      take,
+      skip,
+    }); */
+
+    // inner join vs left join vs outer join
     const queryBuilder = this.userRepository
       // 查询user表，并关联profile和roles表
       .createQueryBuilder('user')

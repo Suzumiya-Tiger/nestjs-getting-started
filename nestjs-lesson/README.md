@@ -284,7 +284,15 @@ userRepository.remove()
 userRepository.createQueryBuilder()
 ```
 
+userRepository 提供了许多内置方法：
 
+- find(): 查找多个实体
+- findOne(): 查找单个实体
+- create(): 创建实体实例
+- save(): 保存实体到数据库
+- update(): 更新实体
+- delete(): 删除实体
+- createQueryBuilder(): 创建复杂的查询构建器
 
 ### service的查询语句
 
@@ -428,5 +436,261 @@ export class UserService {
   }
 
 
+```
+
+queryBuilder会调用this.userRepository.createQueryBuilder来创建关于user表的查询。
+
+随后会采用leftJoinAndSelect的左连接形式去关联对应副表，第一个参数是主表的副表字段，第二个参数就是副表名称。
+
+andWhere是一个补充性的查询，原本可以采用where查询，但是我们集成了在了一个工具类函数之中进行统一遍历查询。
+
+同时注意，where查询有个问题，就是后面的查询会覆盖前面的查询，这也是为什么这里使用的是andWhere。
+
+总而言之，我们会先构建一个查询表的范围和查询类型，然后再通过执行的SQL语句比如andWhere之类去完成具体的查询操作。
+
+typorm中的查询语句是通过:制定插入符的，就好像SQL操作中的?，比如：
+`   queryBuilder.where('user.username=:username', { username });`
+
+这里的意思就是通过`where('user.username=:username')`，把username插入到指定的:后面的位置，`{username}`是具体的值。username使我们从查询语句中抽离出来的。
+
+
+
+### 保存实体到数据库
+
+我们再次强调两个概念:
+
+- `@InjectRepository(User)` 装饰器告诉 NestJS 注入与 User 实体相关的 Repository
+- `Repository<User>` 表示这是一个专门处理 User 实体的仓库
+
+save 是 TypeORM 提供的 Repository API 之一。它是最常用的持久化方法之一。
+
+
+
+我们首先需要采用 `userRepository.create()`来创建实体实例，然后需要save才会保存到数据库。
+
+也就是首先我们先创建一个实例:
+```TS
+const user = userRepository.create({
+    username: 'test',
+    password: '123456'
+});
+```
+
+然后再通过 `await userRepository.save(user);`进行保存。
+
+常规来说，我们需要通过try catch来捕获await请求过程中的错误，然后通过 `throw new HttpException('')`抛出错误的信息。
+比如以下代码:
+
+```TS
+catch (error) {
+      console.log(
+        '🚀 ~ file: user.service.ts ~ line 93 ~ UserService ~ create ~ error',
+        error,
+      );
+      if (error.errno && error.errno === 1062) {
+        throw new HttpException(error.sqlMessage, 500);
+      }
+    }
+```
+
+### 错误捕获处理
+
+事实上，我们有更先进的处理方法，比如filter。
+
+我们需要借助request-ip这个插件，如果没有请安装。
+
+这个包用于读取用户请求的时候的真实ip。
+
+接下来我们在main.ts/setup.ts中使用filter:
+
+```typescript
+  const httpAdapter = app.get(HttpAdapterHost);
+  // 全局Filter只能有一个
+  const logger = new Logger();
+  app.useGlobalFilters(new HttpExceptionFilter(logger));
+  app.useGlobalFilters(new AllExceptionFilter(logger, httpAdapter));
+```
+
+接下来我们需要再all-exception.filter.ts中定义catch的具体处理方法:
+
+```TS
+  catch(exception: unknown, host: ArgumentsHost) {
+    const { httpAdapter } = this.httpAdapterHost;
+    const ctx = host.switchToHttp();
+    const request = ctx.getRequest();
+    const response = ctx.getResponse();
+
+    const httpStatus =
+      exception instanceof HttpException
+        ? exception.getStatus()
+        : HttpStatus.INTERNAL_SERVER_ERROR;
+
+    const msg: unknown = exception['response'] || 'Internal Server Error';
+    // 加入更多异常错误逻辑
+     if (exception instanceof QueryFailedError) {
+       msg = exception.message;
+        if (exception.driverError.errno && exception.driverError.errno === 1062) {
+          msg = '唯一索引冲突';
+        }
+     }
+
+    const responseBody = {
+      headers: request.headers,
+      query: request.query,
+      body: request.body,
+      params: request.params,
+      timestamp: new Date().toISOString(),
+      // 还可以加入一些用户信息
+      // IP信息
+      ip: requestIp.getClientIp(request),
+      exceptioin: exception['name'],
+      error: msg,
+    };
+
+    this.logger.error('[toimc]', responseBody);
+    httpAdapter.reply(response, responseBody, httpStatus);
+  }
+```
+
+其实我们可以通过命令行创建一个专门处理错误的filter，比如:
+`nest g f filters/typeorm --flat -d --no-spec`
+
+这是一个 Nest CLI 命令，用于生成一个过滤器（Filter）。让我们逐部分解析这个命令：
+
+1. nest - Nest CLI 命令
+
+2. g - 是 generate 的简写，表示生成代码
+
+3. f - 是 filter 的简写，表示生成过滤器
+
+4. filters/typeorm - 指定生成位置和名称
+
+   将在 src/filters 目录下创建
+
+   文件名将包含 typeorm
+
+5. --flat - 不创建额外的目录，直接在 filters 目录下创建文件
+
+6. -d - 是 --dry-run 的简写，表示试运行，不实际创建文件
+
+7. --no-spec - 不生成测试文件
+
+如果去掉 -d 参数实际执行，会生成如下文件：
+
+```ts
+import { ArgumentsHost, Catch, ExceptionFilter } from '@nestjs/common';
+
+@Catch()
+export class TypeormFilter implements ExceptionFilter {
+  catch(exception: any, host: ArgumentsHost) {
+    // 处理异常的逻辑
+  }
+}
+```
+
+过滤器的作用是：
+
+1. 捕获应用程序中抛出的异常
+2. 处理这些异常（如记录日志、转换错误格式等）
+3. 返回适当的响应给客户端
+
+接下来我们可以在创建生成的filters文件中去写入catch的错误处理逻辑:
+```TS
+import { ArgumentsHost, Catch, ExceptionFilter } from '@nestjs/common';
+import { TypeORMError, QueryFailedError } from 'typeorm';
+
+@Catch(TypeORMError)
+export class TypeormFilter implements ExceptionFilter {
+  catch(exception: TypeORMError, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    let code = 500;
+    if (exception instanceof QueryFailedError) {
+      code = exception.driverError.errno;
+    }
+    // 响应 请求对象
+    const response = ctx.getResponse();
+    response.status(500).json({
+      code: code,
+      timestamp: new Date().toISOString(),
+      // path: request.url,
+      // method: request.method,
+      message: exception.message,
+    });
+  }
+}
+
+```
+
+#### 异常捕获装饰器
+
+`@Catch(TypeORMError) // 这里定义了要捕获的异常类型`
+
+这个装饰器告诉 NestJS：当遇到 TypeORMError 类型的异常时，使用这个过滤器处理。
+
+异常自动传递
+
+当代码中抛出 TypeORM 相关的异常时，NestJS 会：
+
+```ts
+// 例如在 Service 中的某个操作抛出异常
+async create(user: Partial<User>) {
+  try {
+    const userTmp = await this.userRepository.create(user);
+    return await this.userRepository.save(userTmp);
+  } catch (error) {
+    // TypeORM 可能抛出的异常
+    // 比如：重复键值违反唯一约束
+    // 这个异常会自动被 TypeormFilter 捕获
+    throw error;  
+  }
+}
+```
+
+```typescript
+graph LR
+    A[数据库操作] --> B[抛出异常]
+    B --> C[NestJS捕获异常]
+    C --> D[匹配@Catch装饰器]
+    D --> E[调用TypeormFilter]
+    E --> F[返回格式化响应]
+```
+
+所以，你只需要：
+
+1. 定义过滤器（TypeormFilter）
+2. 在需要的地方使用 `@UseFilters 装饰器`
+3. 剩下的异常捕获和处理都由 NestJS 框架自动完成
+
+你可以选择：
+
+- 在控制器级别使用 @UseFilters()
+- 在方法级别使用 @UseFilters()
+- 或在 main.ts 中全局使用 app.useGlobalFilters()
+
+
+
+然后我们在user.controller.ts中写入@UseFilters注入filter:
+
+```ts
+@Controller('user')
+@UseFilters(new TypeormFilter())
+......
+......
+export class UserController {
+```
+
+
+
+或者我们希望在全局生效，那么可以在入口文件使用该过滤器:
+
+```TS
+import { TypeormFilter } from './filters/typeorm.filter';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  // 全局使用这个过滤器
+  app.useGlobalFilters(new TypeormFilter());
+  await app.listen(3000);
+}
 ```
 
