@@ -4,6 +4,10 @@ import { UserService } from 'src/user/user.service';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 
+// @Injectable() 装饰器用于标记类为可注入的
+// 它告诉 NestJS 这个类可以作为依赖注入的候选者
+// 在 NestJS 中，服务（Service）通常用于封装业务逻辑
+// 它们可以包含方法，这些方法可以被控制器或其他服务调用
 @Injectable()
 export class AuthService {
   constructor(private userService: UserService, private jwt: JwtService) {}

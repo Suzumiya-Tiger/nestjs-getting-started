@@ -116,7 +116,9 @@ export class UserService {
       // 方案1：使用现有角色
       const role = await this.rolesRepository.findOne({
         where: { id: 2 },
-        // 确 保角色存在
+        // 可以添加多个条件
+        // status: 'active',
+        // type: 'admin'
         select: ['id', 'name'],
       });
 
@@ -137,6 +139,7 @@ export class UserService {
       // 查询所有的用户角色
       user.roles = await this.rolesRepository.find({
         where: {
+          // In 是 TypeORM 提供的一个查询操作符，用于匹配数组中的任意值。它相当于 SQL 中的 IN 子句。
           id: In(user.roles),
         },
       });

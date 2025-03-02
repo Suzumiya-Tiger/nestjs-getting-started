@@ -3,6 +3,7 @@ import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { getServerConfig } from '../ormconfig';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import { SerializeInterceptor } from './interceptors/serialize.interceptor';
 
 export const setupApp = (app: INestApplication) => {
   const config = getServerConfig();
@@ -29,7 +30,7 @@ export const setupApp = (app: INestApplication) => {
   // app.useGlobalGuards()
   // 弊端 -> 无法使用DI -> 无法访问userService
 
-  // app.useGlobalInterceptors(new SerializeInterceptor());
+  app.useGlobalInterceptors(new SerializeInterceptor());
 
   // helmet头部安全
   app.use(helmet());

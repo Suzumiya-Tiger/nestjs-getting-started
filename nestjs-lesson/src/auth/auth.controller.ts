@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 // import { SerializeInterceptor } from '../interceptors/serialize.interceptor';
 import { TypeormFilter } from 'src/filters/typeorm.filter';
+import { SerializeInterceptor } from 'src/interceptors/serialize.interceptor';
 import { AuthService } from './auth.service';
 import { SigninUserDto } from './dto/signin-user.dto';
 
@@ -31,6 +32,7 @@ export class AuthController {
 
   @Post('/signin')
   async signin(@Body() dto: SigninUserDto) {
+    // 登录接口
     const { username, password } = dto;
     const token = await this.authService.signin(username, password);
     return {
@@ -39,6 +41,7 @@ export class AuthController {
   }
 
   @Post('/signup')
+  // 注册接口
   // @UseInterceptors(SerializeInterceptor)
   signup(@Body() dto: SigninUserDto) {
     const { username, password } = dto;

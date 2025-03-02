@@ -14,6 +14,7 @@ import {
   ParseIntPipe,
   UseGuards,
   Req,
+  Headers,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { ConfigService } from '@nestjs/config';
@@ -47,7 +48,7 @@ export class UserController {
   @Get('/profile')
   // @UseGuards(AuthGuard('jwt'))
   getUserProfile(
-    @Query('id', ParseIntPipe) id: any,
+    @Query('id', ParseIntPipe) id: number,
     // 这里req中的user是通过AuthGuard('jwt')中的validate方法返回的
     // PassportModule来添加的
     // @Req() req
@@ -111,15 +112,18 @@ export class UserController {
 
   @Patch('/:id')
   updateUser(
-    @Body() dto: any,
-    @Param('id', ParseIntPipe) id: number,
-    @Req() req,
-    // @Headers('Authorization') headers: any,
+    @Body() dto: any, // 请求体中的数据
+    @Param('id', ParseIntPipe) id: number, // URL参数中的id，并使用ParseIntPipe转换为数字
+    @Req() req, // 请求对象
+    @Headers('Authorization') headers: any, // 获取Authorization请求头
   ): any {
-    // console.log(
-    //   '🚀 ~ file: user.controller.ts ~ line 76 ~ UserController ~ headers',
-    //   headers,
-    // );
+    console.log(
+      '🚀 ~ file: user.controller.ts ~ line 76 ~ UserController ~ headers',
+      headers,
+      dto,
+      id,
+      req.user,
+    );
     if (id === parseInt(req.user?.userId)) {
       console.log(123);
       // 说明是同一个用户在修改
