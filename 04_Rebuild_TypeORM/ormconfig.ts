@@ -1,7 +1,4 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
-import { Roles } from './src/roles/roles.entity';
-import { Profile } from './src/user/profile.entity';
-import { User } from './src/user/user.entity';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import * as fs from 'fs';
 import * as dotenv from 'dotenv';
@@ -21,6 +18,11 @@ function buildConnectionOptions() {
     ...defaultConfig,
     ...envConfig,
   };
+
+  const entitlesDir =
+    process.env.NODE_ENV === 'test'
+      ? [__dirname + '/**/*.entity{.ts}']
+      : [__dirname + '/**/*.entity{.ts,.js}'];
   return {
     type: config[ConfigEnum.DB_TYPE],
     host: config[ConfigEnum.DB_HOST],
@@ -28,7 +30,7 @@ function buildConnectionOptions() {
     username: config[ConfigEnum.DB_USERNAME],
     password: config[ConfigEnum.DB_PASSWORD],
     database: config[ConfigEnum.DB_DATABASE],
-    entities: [User, Profile, Roles],
+    entities: entitlesDir,
     // 同步本地的schema与数据库
     synchronize: true, // 自动创建表
     logging: ['error'], // 打印错误sql日志

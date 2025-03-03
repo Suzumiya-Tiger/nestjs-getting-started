@@ -24,11 +24,23 @@ const envFilePath = `.env.${process.env.NODE_ENV || 'development'}`;
       // joi配置校验
       validationSchema: Joi.object({
         DB_PORT: Joi.number().default(3306),
+        DB_HOST: Joi.alternatives().try(
+          Joi.string().ip(),
+          Joi.string().domain(),
+        ),
         NODE_ENV: Joi.string()
           .valid('development', 'production')
           .default('development'),
         DB_URL: Joi.string().domain().optional(),
-        DB_HOST: Joi.string().required(), // 允许字符串（如 'db'）
+        DB_PASSWORD: Joi.string()
+          .regex(/^[a-zA-Z0-9]{3,30}$/)
+          .required(),
+        DB_USERNAME: Joi.string().alphanum().min(3).max(30).required(),
+        DB_DATABASE: Joi.string().alphanum().min(3).max(30).required(),
+        DB_SYNC: Joi.boolean().required(),
+        LOG_LEVEL: Joi.string()
+          .valid('error', 'warn', 'info', 'debug')
+          .required(),
       }),
     }),
     UserModule,
