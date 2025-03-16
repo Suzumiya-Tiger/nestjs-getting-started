@@ -36,7 +36,6 @@ export class UserController {
 ### 为什么需要 @Injectable()
 
 ```ts
-graph TD
     A[NestJS IoC Container] -->|创建实例| B[UserService]
     A -->|创建实例| C[UserController]
     B -->|注入| C
@@ -3376,7 +3375,7 @@ export class User {
 
 
 
-# 敏感数据的处理
+## 敏感数据的处理
 
 interceptors的整个操作流程总结如下:
 ![image-20250302232556991](./README.assets/image-20250302232556991.png)
@@ -3545,15 +3544,530 @@ export function Serialize(dto: ClassConstructor) {
 
 
 
+# 菜单路由的创建
 
 
 
 
 
+## migrations
+
+我们首先需要执行以下命令:
+
+```bash
+pnpm run migration:create src/migrations
+```
+
+`pnpm run migration:create src/migrations` 命令用于创建数据库迁移文件。在 TypeORM 中，迁移（Migrations）是一种管理数据库架构变更的方式。
+
+这个命令的主要作用是：
+
+1. 创建一个新的迁移文件，通常位于 src/migrations 目录下
+
+2. 生成的迁移文件包含 up() 和 down() 两个方法：
+
+   up(): 用于定义要执行的数据库变更（如创建表、添加字段等）
+
+   down(): 用于定义如何撤销这些变更（回滚操作）
+
+例如，一个典型的迁移文件可能看起来像这样：
+
+```typescript
+import { MigrationInterface, QueryRunner } from "typeorm";
+
+export class CreateUserTable1234567890123 implements MigrationInterface {
+    // 执行迁移
+    public async up(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query(`
+            CREATE TABLE user (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                username VARCHAR(255) NOT NULL,
+                password VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+    }
+
+    // 回滚迁移
+    public async down(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query(`DROP TABLE user`);
+    }
+}
+```
+
+使用迁移的好处：
+
+1. 版本控制：可以追踪数据库架构的变更历史
+
+1. 团队协作：确保所有开发人员的数据库架构保持一致
+
+1. 环境部署：可以轻松在不同环境（开发、测试、生产）中同步数据库架构
+
+1. 回滚能力：如果出现问题，可以回滚到之前的版本
+
+相关的常用命令：
+
+```bash
+# 创建新的迁移
+pnpm run migration:create src/migrations
+
+# 生成迁移（基于实体变更自动生成）
+pnpm run migration:generate src/migrations/[迁移名称]
+
+# 运行迁移
+pnpm run migration:run
+
+# 回滚迁移
+pnpm run migration:revert
+```
+
+这些命令通常在 package.json 中定义：
+
+```json
+{
+  "scripts": {
+    "migration:create": "typeorm migration:create",
+    "migration:generate": "typeorm-ts-node-commonjs migration:generate",
+    "migration:run": "typeorm-ts-node-commonjs migration:run -d ormconfig.ts",
+    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d ormconfig.ts"
+  }
+}
+```
 
 
 
+### 为什么要先执行migrations?
 
+假设你要创建一个菜单管理功能，这个功能需要在数据库中存储菜单数据。执行 pnpm run migration:create src/migrations 的目的是：
+
+- 作用：创建一个空白的迁移文件模板
+
+- 使用场景：当你需要手动编写迁移逻辑时
+
+#### 为什么要迁移？
+
+1. 我们写了 menu.entity.ts 实体类，但这只是 TypeScript 代码，数据库中还没有对应的表结构
+2. 需要把这个实体类转换成实际的数据库表，这就是"迁移"
+3. 简单说：迁移就是把代码中定义的数据结构转换成真实的数据库表结构
+
+#### 具体流程
+
+首先我们有了实体类定义：
+
+menu.entity.ts
+
+```typescript
+@Entity()
+export class Menus {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  name: string;
+
+  @Column()
+  path: string;
+
+  @Column()
+  order: number;
+
+  @Column()
+  acl: string;
+
+  @ManyToMany(() => Roles, (roles) => roles.menus)
+  @JoinTable({ name: 'role_menus' })
+  role: Roles;
+}
+```
+
+执行 pnpm run migration:generate menus 后:
+
+- TypeORM 会读取这个实体类
+
+- 自动生成 SQL 语句
+
+- 创建对应的数据库表结构
+
+- 最终在数据库中生成两张表：
+
+- menus 表（存储菜单信息）
+
+- role_menus 表（存储菜单和角色的关联关系）
+
+
+
+生成的迁移文件会包含创建表的 SQL:
+
+```SQL
+-- 创建菜单表
+CREATE TABLE menus (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    path VARCHAR(255) NOT NULL,
+    order INT NOT NULL,
+    acl VARCHAR(255) NOT NULL
+);
+
+-- 创建菜单-角色关联表
+CREATE TABLE role_menus (
+    menu_id INT,
+    role_id INT,
+    PRIMARY KEY (menu_id, role_id),
+    FOREIGN KEY (menu_id) REFERENCES menus(id),
+    FOREIGN KEY (role_id) REFERENCES roles(id)
+);
+```
+
+简单来说：
+
+- 迁移就是把 TypeScript 代码转换成数据库表的过程
+
+- 没有迁移，你的实体类就只是一段 TypeScript 代码
+
+- 执行迁移后，数据库中才会有真实的表结构
+
+- 有了表结构，你的菜单管理功能才能真正工作（增删改查才有地方存储数据）
+
+这就像是：
+
+1. menu.entity.ts 是你画的设计图
+
+1. migration 是把设计图变成真实建筑的施工过程
+
+1. 最终的数据库表是实际建成的建筑
+
+所以迁移是必需的，因为它把你的代码定义转换成了真实可用的数据库结构。
+
+### 命令分析
+
+`pnpm run migration:create src/migrations`
+
+- 作用：创建一个空白的迁移文件模板
+
+- 使用场景：当你需要手动编写迁移逻辑时
+
+- 示例：
+
+```typescript
+// 生成的文件名类似：1234567890123-CreateMenus.ts
+export class CreateMenus1234567890123 implements MigrationInterface {
+    public async up(queryRunner: QueryRunner): Promise<void> {
+        // 这里需要你手动编写SQL或TypeORM命令
+        await queryRunner.query(`
+            CREATE TABLE menus (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                name VARCHAR(255) NOT NULL,
+                path VARCHAR(255) NOT NULL,
+                order INT NOT NULL,
+                acl VARCHAR(255) NOT NULL
+            )
+        `);
+    }
+
+    public async down(queryRunner: QueryRunner): Promise<void> {
+        // 回滚操作
+        await queryRunner.query(`DROP TABLE menus`);
+    }
+}
+```
+
+
+
+实际意义：
+
+- 数据持久化：确保菜单数据可以正确存储在数据库中
+- 初始数据：可以预设一些基础菜单数据
+- 数据一致性：确保所有环境（开发、测试、生产）的菜单数据结构一致
+
+如果不执行这个步骤：
+
+- 菜单数据可能无法正确存储
+- 不同环境的数据库结构可能不一致
+- 团队其他成员可能无法正确运行你的菜单功能
+
+所以，这个命令是为了准备数据库环境，让你的菜单功能有一个正确的数据存储基础。这是实现菜单功能的第一步。
+
+
+
+`pnpm run migration:generate menus`
+
+- 作用：根据实体类的变化自动生成迁移文件
+
+- 使用场景：当你修改了实体类（如 menu.entity.ts）后，想自动生成对应的数据库变更
+
+```typescript
+// 基于你的 menu.entity.ts 自动生成迁移文件
+export class Menus1234567890123 implements MigrationInterface {
+    public async up(queryRunner: QueryRunner): Promise<void> {
+        // TypeORM 自动生成的SQL
+        await queryRunner.query(`
+            CREATE TABLE menus (
+                id int NOT NULL AUTO_INCREMENT,
+                name varchar(255) NOT NULL,
+                path varchar(255) NOT NULL,
+                order int NOT NULL,
+                acl varchar(255) NOT NULL,
+                PRIMARY KEY (id)
+            )
+        `);
+
+        // 自动生成关联表
+        await queryRunner.query(`
+            CREATE TABLE role_menus (
+                menu_id int NOT NULL,
+                role_id int NOT NULL,
+                PRIMARY KEY (menu_id, role_id),
+                FOREIGN KEY (menu_id) REFERENCES menus(id),
+                FOREIGN KEY (role_id) REFERENCES roles(id)
+            )
+        `);
+    }
+
+    public async down(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query(`DROP TABLE role_menus`);
+        await queryRunner.query(`DROP TABLE menus`);
+    }
+}
+```
+
+### 主要区别
+
+**migration:create**
+
+- 只创建空白模板
+
+- 需要手动编写迁移逻辑
+
+- 适合复杂的数据库变更
+
+**migration:generate**
+
+- 自动生成迁移逻辑
+
+- 基于实体类的变化
+
+- 适合简单的表结构变更
+
+### 工作流程示例
+
+创建/修改实体类：
+
+```typescript
+@Entity()
+export class Menus {
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    @Column()
+    name: string;
+    // ... 其他字段
+}
+```
+
+生成迁移文件：
+
+```bash
+# 自动生成迁移
+pnpm run migration:generate menus
+
+# 或手动创建迁移
+pnpm run migration:create src/migrations
+```
+
+运行迁移：
+
+```bash
+pnpm run migration:run
+```
+
+如果需要回滚：
+
+```bash
+pnpm run migration:revert
+```
+
+最佳实践：
+
+- 对于简单的表结构变更，使用 migration:generate
+
+- 对于复杂的数据变更（如数据迁移、字段转换），使用 migration:create
+
+- 每次修改实体类后，都生成新的迁移文件
+
+- 在提交代码前，确保迁移文件已经测试通过
+
+这样可以：
+
+- 追踪数据库的变更历史
+- 在团队协作中保持数据库结构一致
+- 方便在不同环境中部署数据库变更
+- 提供数据库变更的回滚机制
+
+
+
+## 设计menus菜单
+
+首先在menus.entity.ts 定义具体的数据库格式:
+
+```typescript
+import {
+  Column,
+  Entity,
+  JoinTable,
+  ManyToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+
+import { Roles } from 'src/roles/roles.entity';
+
+@Entity()
+export class Menus {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  name: string;
+
+  @Column()
+  path: string;
+
+  @Column()
+  order: number;
+
+  // 不要通过string存数组 -> 5个操作策略
+  // -> CREATE, READ, UPDATE, DELETE, MANAGE
+  @Column()
+  acl: string;
+
+  // 一个role对应多个menu及控制权限
+  @ManyToMany(() => Roles, (roles) => roles.menus)
+  @JoinTable({ name: 'role_menus' })
+  role: Roles;
+}
+
+```
+
+该实现方式有以下优点：
+
+1. acl 使用字符串存储权限标识，更简单直接
+2. 角色和菜单的多对多关系定义清晰
+3. 使用 role_menus 作为关联表名称
+
+### 设计的目的和优势
+
+1. 权限粒度控制：
+
+- acl 字段存储具体的操作权限（如：CREATE, READ, UPDATE, DELETE, MANAGE）
+
+- 每个菜单可以有自己独特的权限设置
+
+- 例如："用户管理"菜单可能有 "READ,CREATE"，而"系统设置"可能只有 "READ"
+
+1. 角色菜单关联：
+
+- 通过 @ManyToMany 建立多对多关系
+
+- 一个角色可以访问多个菜单
+
+- 一个菜单也可以被多个角色访问
+
+- role_menus 中间表自动维护这种多对多关系
+
+
+
+```typescript
+// 示例数据结构
+const menuExample = {
+  id: 1,
+  name: "用户管理",
+  path: "/users",
+  order: 1,
+  acl: "READ,CREATE,UPDATE",  // 该菜单允许的操作
+  role: {
+    id: 2,
+    name: "管理员"
+  }
+}
+```
+
+### 业务流程
+
+- 当用户登录时，获取其角色信息
+
+- 根据角色查询可访问的菜单列表
+
+- 根据每个菜单的 acl 决定用户可以进行哪些操作
+
+- 前端可以根据 acl 显示或隐藏相应的操作按钮
+
+### 权限验证流程
+
+```typescript
+// 伪代码示例
+async function checkPermission(userId: number, menuPath: string, operation: string) {
+  // 1. 获取用户角色
+  const userRoles = await getUserRoles(userId);
+  
+  // 2. 获取角色可访问的菜单
+  const menus = await getMenusByRoles(userRoles);
+  
+  // 3. 检查特定菜单的权限
+  const menu = menus.find(m => m.path === menuPath);
+  if (!menu) return false;
+  
+  // 4. 验证具体操作权限
+  return menu.acl.includes(operation);
+}
+```
+
+### 实际使用案例
+
+```typescript
+// 创建菜单时
+await menuService.create({
+  name: "用户管理",
+  path: "/users",
+  order: 1,
+  acl: "READ,CREATE",  // 只允许读取和创建操作
+  role: adminRole  // 关联到管理员角色
+});
+
+// 查询角色的菜单权限
+const adminMenus = await roleService.findOne(adminRoleId, {
+  relations: ['menus']  // 加载关联的菜单
+});
+```
+
+1. 扩展性考虑：
+
+- 可以轻松添加新的菜单项
+
+- 可以灵活调整角色的菜单权限
+
+- 支持动态的权限控制
+
+- 便于后期维护和权限调整
+
+这种设计模式适合：
+
+- 需要细粒度权限控制的系统
+
+- 有多角色多权限的管理后台
+
+- 需要动态配置菜单权限的场景
+
+- 需要清晰的权限审计机制的系统
+
+通过这种设计，你可以实现一个灵活且安全的权限管理系统，同时保持代码的可维护性和扩展性。
+
+执行 `pnpm run migration:generate menus`来生成当前menus的映射关系。
+
+此时在命令行执行 `npm run migration:run`后，这些映射关系就会自动填充和修改到我们的数据库中:
+
+![image-20250304001534494](./README.assets/image-20250304001534494.png)
+
+这里来执行 `pnpm run migration:revert`恢复数据库到上一个版本:
+![image-20250304001645930](./README.assets/image-20250304001645930.png)
 
 
 

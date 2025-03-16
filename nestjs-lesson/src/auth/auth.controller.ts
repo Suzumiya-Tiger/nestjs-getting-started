@@ -7,6 +7,7 @@ import {
   UseInterceptors,
   ClassSerializerInterceptor,
   Get,
+  InternalServerErrorException,
 } from '@nestjs/common';
 // import { SerializeInterceptor } from '../interceptors/serialize.interceptor';
 import { TypeormFilter } from 'src/filters/typeorm.filter';
@@ -32,12 +33,24 @@ export class AuthController {
 
   @Post('/signin')
   async signin(@Body() dto: SigninUserDto) {
-    // 登录接口
-    const { username, password } = dto;
-    const token = await this.authService.signin(username, password);
-    return {
-      access_token: token,
-    };
+    try {
+      // 登录接口
+      const { username, password } = dto;
+      const token = await this.authService.signin(username, password);
+      return {
+        access_token: token,
+      };
+    } catch (error) {
+      // 记录错误日志
+      console.error('Signin error:', error);
+
+      // 根据错误类型返回适当的错误响应
+      if (error.status) {
+        throw error; // 如果是HTTP异常，直接抛出
+      }
+
+      throw new InternalServerErrorException('登录失败，请稍后重试');
+    }
   }
 
   @Post('/signup')

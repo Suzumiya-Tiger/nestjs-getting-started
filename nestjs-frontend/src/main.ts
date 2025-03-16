@@ -1,20 +1,24 @@
 import { createApp } from 'vue';
 import App from './App.vue';
-
-import { setupStore } from './store/index';
 import { setupRouter } from './router';
+import { setupStore } from './store';
 
-import 'bootstrap/dist/js/bootstrap';
+// 引入bootstrap
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap';
 
-function bootstrap() {
-  const app = createApp(App);
-  // router
-  setupRouter(app);
+const app = createApp(App);
 
-  // store
-  setupStore(app);
+// 初始化 store
+setupStore(app);
 
-  app.mount('#app');
+// 初始化路由
+setupRouter(app);
+
+// 挂载应用
+app.mount('#app');
+
+// 开发环境下的调试信息
+if (import.meta.env.DEV) {
+  console.log('Vue app initialized in development mode');
 }
-
-bootstrap();

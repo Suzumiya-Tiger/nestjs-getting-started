@@ -100,10 +100,10 @@ export class UserService {
     );
   }
 
-  find(username: string) {
-    return this.userRepository.findOne({
+  async find(username: string) {
+    return await this.userRepository.findOne({
       where: { username },
-      relations: ['roles', 'roles.menus'],
+      relations: ['roles'], // 确保加载角色关系
     });
   }
 

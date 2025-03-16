@@ -3,11 +3,17 @@ import { App } from 'vue';
 
 const routes = [
   {
+    path: '/',
+    redirect: '/login'
+  },
+  {
     path: '/login',
+    name: 'login',
     component: () => import('@/views/login/login.vue'),
   },
   {
     path: '/reg',
+    name: 'register',
     component: () => import('@/views/login/reg.vue'),
   },
   // 内容页
@@ -52,6 +58,11 @@ const routes = [
       },
     ],
   },
+  // 添加404路由
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/login'
+  }
 ] as RouteRecordRaw[];
 
 const router = createRouter({
@@ -59,6 +70,14 @@ const router = createRouter({
   routes,
 });
 
+// 添加全局路由守卫
+router.beforeEach((to, from, next) => {
+  console.log('Route change:', to.path);
+  next();
+});
+
 export function setupRouter(app: App<Element>) {
   app.use(router);
 }
+
+export { router };

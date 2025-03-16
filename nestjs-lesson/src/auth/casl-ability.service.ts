@@ -11,10 +11,12 @@ import { Menus } from '../menus/menu.entity';
 
 @Injectable()
 export class CaslAbilityService {
+  // 注入了userService,用于调用userService的find方法，来获取用户信息
   constructor(private userService: UserService) {}
-
+  // forRoot是用于初始化权限的，用于获取用户信息
   async forRoot(username: string) {
     // 针对于整个系统的 -> createUser XX SYStem
+
     const { can, build } = new AbilityBuilder(createMongoAbility);
 
     // can('manage', 'all');
@@ -35,7 +37,7 @@ export class CaslAbilityService {
     });
     const menus = Object.values(obj) as Menus[];
     menus.forEach((menu) => {
-      const actions = menu.acl.split(',');
+      const actions = menu.acl;
       for (let i = 0; i < actions.length; i++) {
         const action = actions[i];
         can(action, getEntities(menu.path));

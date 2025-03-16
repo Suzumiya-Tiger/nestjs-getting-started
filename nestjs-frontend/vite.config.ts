@@ -16,12 +16,21 @@ export default defineConfig({
     },
   },
   server: {
+    host: '0.0.0.0',
     port: 4000,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:3000',
-      },
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+        ws: false,
+        rewrite: (path) => path.replace(/^\/api/, '/api/v1')
+      }
     },
+    hmr: {
+      protocol: 'ws',
+      host: 'localhost'
+    }
   },
   css: {
     preprocessorOptions: {

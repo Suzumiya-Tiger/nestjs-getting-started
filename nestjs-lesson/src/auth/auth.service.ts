@@ -30,6 +30,7 @@ export class AuthService {
     return await this.jwt.signAsync({
       username: user.username,
       sub: user.id,
+      roles: user.roles,
     });
 
     // if (user && user.password === password) {

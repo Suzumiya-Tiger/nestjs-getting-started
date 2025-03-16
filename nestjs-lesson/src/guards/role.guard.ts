@@ -25,6 +25,12 @@ export class RoleGuard implements CanActivate {
     const roleIds = user.roles.map((o) => o.id);
 
     const flag = requiredRoles.some((role) => roleIds.includes(role));
+
+    // 添加调试日志
+    console.log('Required roles:', requiredRoles);
+    console.log('User from request:', req.user);
+    console.log('User roles:', user?.roles);
+
     return flag;
   }
 }
